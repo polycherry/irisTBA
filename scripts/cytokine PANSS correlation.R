@@ -1,5 +1,5 @@
 ############################################################
-# PCA correlation pipeline
+# PCA Correlation Pipeline
 # Author: Vasishta
 # Date: Aug 2025
 # Purpose: 
@@ -16,9 +16,9 @@ library(ggplot2)
 library(reshape2)
 
 ############################################################
-# Step 1. Starting point: PCA dataframe (already created)
+# Step 1: Starting point - PCA dataframe
 # pca_df should contain PC1, PC2, Image (or Sample ID), etc.
-# Example structure assumed:
+# Example structure:
 # pca_df <- data.frame(
 #   PC1 = ...,
 #   PC2 = ...,
@@ -28,10 +28,18 @@ library(reshape2)
 # )
 ############################################################
 
+############################################################
+# Step 2: Clean up the SubjectID (remove trailing 'a')
+############################################################
+# Step 2: Clean up the SubjectID (remove trailing 'a')
+############################################################
 
-# Step 2. Clean up the SubjectID (remove trailing "a")
 pca_df <- pca_df %>%
   mutate(SubjectID_clean = gsub("a$", "", SubjectID))
+
+############################################################
+# Step 3: Merge PCA results with clinical dataset
+############################################################
 
 # Remove leading/trailing whitespace and convert to numeric
 dataset_IRIS_for_Poly_22_08_2025$ID_clean <- as.numeric(trimws(dataset_IRIS_for_Poly_22_08_2025$ID))
@@ -39,17 +47,16 @@ dataset_IRIS_for_Poly_22_08_2025$ID_clean <- as.numeric(trimws(dataset_IRIS_for_
 # Also make sure pca_df has numeric IDs
 pca_df$SubjectID_clean <- as.numeric(pca_df$SubjectID_clean)
 
-# Now join safely on the numeric IDs
+# Join on the numeric IDs
 merged_df <- inner_join(pca_df, dataset_IRIS_for_Poly_22_08_2025, 
                         by = c("SubjectID_clean" = "ID_clean"))
 
 # Check how many rows matched
 nrow(merged_df)
 
-
 ############################################################
-# Step 4. Compute correlations between PCA components and 
-# all numeric variables in the big dataset
+# Step 4: Compute correlations between PCA components and 
+#         all numeric variables
 ############################################################
 
 # Select only numeric columns
@@ -75,16 +82,16 @@ cor_df <- cor_df %>%
   relocate(Variable)
 
 ############################################################
-# Step 5. Visualization: Heatmap of correlations
+# Step 5: Visualization - Heatmap of correlations
 ############################################################
-# Melt for ggplot
-library(reshape2)
 
+# Melt for ggplot
 cor_melt <- melt(cor_results)
 colnames(cor_melt) <- c("Variable", "PC", "Correlation")
 
+# Remove first few rows (PCA variables correlating with themselves)
 cor_melt <- cor_melt %>%
-  slice(-c(1:12))  # remove first two rows
+  slice(-c(1:12))
 
 # Plot heatmap
 ggplot(cor_melt, aes(x = PC, y = Variable, fill = Correlation)) +

@@ -1,3 +1,8 @@
+################################################################################
+# IgG Levels Analysis
+# Purpose: Analyze and visualize serum and CSF IgG levels with outlier detection
+################################################################################
+
 library(ggplot2)
 library(dplyr)
 
@@ -11,7 +16,10 @@ merged_df <- merged_df %>%
            group4 == "case_outlier" ~ "case"
          ))
 
-# Function for bar + points + outlier triangles
+################################################################################
+# Function to create bar plot with individual points and outlier labels
+################################################################################
+
 plot_bar <- function(df, yvar, ylab) {
   ggplot(df, aes(x = plot_group, y = !!sym(yvar), fill = plot_group)) +
     geom_bar(stat = "summary", fun = "mean", width = 0.6, alpha = 0.6) +
@@ -26,7 +34,11 @@ plot_bar <- function(df, yvar, ylab) {
     theme(legend.position = "none")
 }
 
-# Plot 1: serum_mean
+################################################################################
+# Generate plots for serum, CSF, and ratio
+################################################################################
+
+# Plot 1: Serum mean IgG levels
 plot_serum <- plot_bar(merged_df, "serum_mean", "Serum Mean")
 plot_serum
 

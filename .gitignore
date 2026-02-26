@@ -1,4 +1,17 @@
+# R project files
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
+
+# Data files
+data/
+*.csv
+*.rds
+
+# Output files
+plots/
+*.pdf
+
+# macOS
+.DS_Store

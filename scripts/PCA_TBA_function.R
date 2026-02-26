@@ -1,3 +1,10 @@
+################################################################################
+# PCA Analysis Function for TBA24 Data
+# Purpose: Flexible PCA analysis with options for including/excluding groups
+#          and different feature sets (mean only vs mean+stdev)
+################################################################################
+
+# Prepare feature matrix for Cy5 channel
 feature_df_Cy5 <- df_summary %>%
   select(Image, Group, SubjectID, matches("Cy5_(mean|stdev)$")) %>%
   pivot_longer(
@@ -7,9 +14,10 @@ feature_df_Cy5 <- df_summary %>%
   ) %>%
   pivot_wider(names_from = Classification, values_from = c(mean, stdev))
 
-
+# Add outlier flags (assumes outlier_idx is defined)
 feature_df_Cy5$outlier <- outlier_idx
 
+# Prepare feature matrix for FITC channel
 feature_df_FITC <- df_summary %>%
   select(Image, Group, SubjectID, matches("FITC_(mean|stdev)$")) %>%
   pivot_longer(
@@ -19,18 +27,26 @@ feature_df_FITC <- df_summary %>%
   ) %>%
   pivot_wider(names_from = Classification, values_from = c(mean, stdev))
 
+# Add outlier flags
 feature_df_FITC$outlier <- outlier_idx
 
-### --- Function to run PCA with flexible options ---
+################################################################################
+# Flexible PCA function
+# Parameters:
+#   data: Feature dataframe with Image, Group, SubjectID, outlier, and features
+#   include_exp: If FALSE, exclude experimental controls from analysis
+#   include_stdev: If FALSE, use only mean features (exclude stdev)
+#   title: Plot title
+################################################################################
 run_pca <- function(data, include_exp = TRUE, include_stdev = TRUE, title = "PCA") {
-  # Filter groups if exp controls excluded
+  # Filter out experimental controls if requested
   if (!include_exp) {
     data <- data %>%
       filter(Group %in% c("case", "control")) %>%
       droplevels()
   }
   
-  # Select features (mean only, or mean+stdev)
+  # Select features: mean only, or mean + standard deviation
   if (include_stdev) {
     features_matrix <- data %>%
       select(-Image, -Group, -SubjectID, -outlier) %>%
@@ -42,13 +58,14 @@ run_pca <- function(data, include_exp = TRUE, include_stdev = TRUE, title = "PCA
       as.matrix()
   }
   
-  # Scale
+  # Scale features to unit variance
   features_scaled <- scale(features_matrix)
   
-  
-  
-  # PCA
+  # Run PCA
+  # Run PCA
   pca_res <- prcomp(features_scaled, center = TRUE, scale. = TRUE)
+  
+  # Create dataframe with PC scores
   pca_df <- data.frame(
     PC1 = pca_res$x[,1],
     PC2 = pca_res$x[,2],
@@ -59,7 +76,7 @@ run_pca <- function(data, include_exp = TRUE, include_stdev = TRUE, title = "PCA
     outlier = data$outlier
   )
   
-  # Plot PCA
+  # Plot PCA scores (PC1 vs PC2)
   print(
     ggplot(pca_df, aes(x = PC1, y = PC2, color = Group, shape = outlier)) +
       geom_point(size = 3) +
@@ -69,7 +86,7 @@ run_pca <- function(data, include_exp = TRUE, include_stdev = TRUE, title = "PCA
       labs(title = title)
   )
   
-  # Scree plot
+  # Generate scree plot to visualize variance explained by each PC
   scree_df <- data.frame(PC = 1:length(pca_res$sdev),
                          Variance = (pca_res$sdev^2) / sum(pca_res$sdev^2))
   print(
@@ -80,7 +97,7 @@ run_pca <- function(data, include_exp = TRUE, include_stdev = TRUE, title = "PCA
            x = "Principal Component", y = "Proportion of Variance")
   )
   
-  # Loadings (top contributors PC1 and PC2)
+  # Print top loadings (features contributing most to PC1 and PC2)
   cat("\nTop loadings for PC1:\n")
   print(head(pca_res$rotation[order(abs(pca_res$rotation[,1]), decreasing = TRUE), 1, drop=FALSE]))
   cat("\nTop loadings for PC2:\n")
@@ -89,8 +106,9 @@ run_pca <- function(data, include_exp = TRUE, include_stdev = TRUE, title = "PCA
   return(pca_res)
 }
 
-
-### --- Run all 4 combinations for Cy5---
+################################################################################
+# Run PCA analyses on Cy5 data (4 combinations)
+################################################################################
 
 # 1. All groups, mean + stdev
 pca_res1 <- run_pca(feature_df_Cy5, include_exp = TRUE, include_stdev = TRUE, 
@@ -107,9 +125,9 @@ pca_res3 <- run_pca(feature_df_Cy5, include_exp = FALSE, include_stdev = TRUE,
 # 4. Case + Control only, mean only
 pca_res4 <- run_pca(feature_df_Cy5, include_exp = FALSE, include_stdev = FALSE, 
                     title = "PCA 4: Case + Control, Cy5 mean only")
-
-
-### --- Run all 4 combinations for FITC---
+################################################################################
+# Run PCA analyses on FITC data (4 combinations)
+################################################################################
 
 # 1. All groups, mean + stdev
 pca_res5 <- run_pca(feature_df_FITC, include_exp = TRUE, include_stdev = TRUE, 
@@ -127,43 +145,46 @@ pca_res7 <- run_pca(feature_df_FITC, include_exp = FALSE, include_stdev = TRUE,
 pca_res8 <- run_pca(feature_df_FITC, include_exp = FALSE, include_stdev = FALSE, 
                     title = "PCA 4: Case + Control, FITC mean only")
 
-
-
-
+################################################################################
+# Correlation analysis of features
+################################################################################
 
 library(dplyr)
 library(pheatmap)
 
-# filter to cases + controls only
+# Filter to cases + controls only
 df_filtered <- feature_df_Cy5 %>%
   filter(Group %in% c("case", "control"))
 
-# select only mean_* columns
+# Select only mean features
 mean_df <- df_filtered %>%
   select(starts_with("mean_"))
 
-# correlation matrix
+# Compute correlation matrix
 cor_matrix <- cor(mean_df, method = "pearson", use = "pairwise.complete.obs")
 
-# heatmap
+# Generate heatmap
 pheatmap(cor_matrix,
          main = "Correlation matrix (mean_* features only, cases + controls)",
          clustering_distance_rows = "euclidean",
          clustering_distance_cols = "euclidean")
 
+################################################################################
+# Group-specific correlation matrices (Cases vs Controls)
+################################################################################
 
 library(dplyr)
 library(pheatmap)
 library(gridExtra)
 
-# --- combine both groups to fix order ---
+# Compute clustering order based on all data (both groups combined)
 mean_all <- feature_df_Cy5 %>%
   filter(Group %in% c("case", "control")) %>%
   select(starts_with("mean_"))
 
 cor_all <- cor(mean_all, method = "pearson", use = "pairwise.complete.obs")
 
-# cluster once on all data
+# Create hierarchical clustering for consistent ordering
 clust_rows <- hclust(dist(cor_all))
 clust_cols <- hclust(dist(t(cor_all)))
 

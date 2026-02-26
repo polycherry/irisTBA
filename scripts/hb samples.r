@@ -1,9 +1,26 @@
+################################################################################
+# Hemoglobin Contamination Analysis
+# Purpose: Analyze correlation between hemoglobin (Hb) levels in CSF samples
+#          and PCA scores to assess potential blood contamination effects
+################################################################################
+
+library(ggplot2)
+library(ggrepel)
+library(ggpubr)
+library(dplyr)
+
+# Import hemoglobin optical density (OD) measurements from ELISA
 IRIS_samples_Hb_OD <- read_excel("/Volumes/lab-schmackk/home/shared/rawData/009_antibodyAssays/AbAs001_IRIS/AbAs001_7_CSF_Hb_ELISA/IRIS samples Hb OD.xlsx")
 
+# Merge Hb OD data with PCA results
 pca_df2 <- pca_df %>%
   left_join(IRIS_samples_Hb_OD, by = c("SubjectID" = "Sample"))
 
-# scatterplot correlation (example with PC1)
+################################################################################
+# Correlation analysis: PC1 vs Hemoglobin OD
+################################################################################
+
+# Basic scatterplot with regression line
 ggplot(pca_df2, aes(x = PC1, y = OD, color = Group)) +
   geom_point(size = 3) +
   geom_smooth(method = "lm", se = FALSE) +
@@ -12,19 +29,17 @@ ggplot(pca_df2, aes(x = PC1, y = OD, color = Group)) +
        x = "PC1",
        y = "OD")
 
-
-library(ggplot2)
-library(ggrepel)
-
-# correlation test across all samples (cases + controls pooled)
+# Pearson correlation test across all samples
 cor_test <- cor.test(pca_df2$PC1, pca_df2$OD, method = "pearson")
 
+# Extract correlation coefficient and p-value
 r_val <- round(cor_test$estimate, 2)
 p_val <- signif(cor_test$p.value, 3)
 
+# Enhanced plot with statistics and outlier labels
 ggplot(pca_df2, aes(x = PC1, y = OD, color = Group)) +
   geom_point(size = 3) +
-  geom_smooth(method = "lm", se = FALSE, color = "black") +  # single fit line
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # Single regression line
   geom_text_repel(
     data = subset(pca_df2, outlier),
     aes(label = SubjectID),
@@ -36,17 +51,18 @@ ggplot(pca_df2, aes(x = PC1, y = OD, color = Group)) +
        x = "PC1",
        y = "OD")
 
+################################################################################
+# Group comparison: Hemoglobin OD levels (Cases vs Controls)
+################################################################################
 
-library(ggpubr)
-
-# t-test
+# Parametric test: t-test
 t_test <- t.test(OD ~ Group, data = pca_df2 %>% filter(Group %in% c("case", "control")))
 
 p_val <- signif(t_test$p.value, 3)
 
-# Barplot with points + error bars
+# Barplot with mean ± SE and individual points
 ggbarplot(pca_df2, x = "Group", y = "OD",
-          add = c("mean_se"),              # show mean ± SE
+          add = c("mean_se"),              # Show mean ± SE
           fill = "Group",                  # color by group
           palette = c("case" = "#E64B35", "control" = "#4DBBD5"),
           add.params = list(size = 1.2)) +
@@ -59,18 +75,17 @@ ggbarplot(pca_df2, x = "Group", y = "OD",
        y = "OD") +
   theme_minimal()
 
+################################################################################
+# Non-parametric test: Wilcoxon rank-sum (Mann-Whitney U)
+################################################################################
 
-# restrict to case vs control only
+# Restrict to case vs control only
 df_case_control <- pca_df2 %>% filter(Group %in% c("case", "control"))
 
-# run Wilcoxon rank-sum test
+# Run Wilcoxon rank-sum test
 wilcox_test <- wilcox.test(OD ~ Group, data = df_case_control)
 
 wilcox_test
-
-library(ggpubr)
-
-library(ggpubr)
 
 df_case_control <- pca_df2 %>% filter(Group %in% c("case", "control"))
 
