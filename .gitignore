@@ -12,6 +12,7 @@ data/
 # Output files
 plots/
 *.pdf
+*.png
 
 # macOS
 .DS_Store
