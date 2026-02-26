@@ -1,11 +1,24 @@
 #Importing measurements from Qupath
-measurements2 <- read.csv("/Volumes/lab-schmackk/home/shared/rawData/009_antibodyAssays/AbAs001_IRIS/AbAs001_1_IRIS_TBA24_CSF/TBA24_CSF/measurements2.csv")
+rawdata <- read.csv("/Volumes/lab-schmackk/home/shared/rawData/009_antibodyAssays/AbAs001_IRIS/AbAs001_1_IRIS_TBA24_CSF/TBA24_CSF/measurements2.csv")
+
+#importing main metadata file 
+
 
 #Make slide name and subject ID, and case category added 
 library(dplyr)
 library(stringr)
+library(tidyr)
 
-measurements2 <- measurements2 %>%
+# slidenaming convention - 'TBAxx_yy_(OHC/OHS/PMS/PMC)_abcd'
+# where xx - is TBA experiment number 
+# yy is the actual slide number
+# OHC/PMS whatever is projectcoede and csf/serum C or S
+# abcd is the ID name 
+# The coding works according to number of underscores - so do not change the naming convention
+
+# If the naming convention is different will have to change this piece of code
+
+rawdata <- rawdata %>%
   mutate(
     SlideID   = str_extract(Image, "^[^_]+_[^_]+"),          # first two chunks
     SubjectID = str_match(Image, "^[^_]+_[^_]+_[^_]+_([^_.]+)")[,2], # 4th chunk, before dot
@@ -18,9 +31,9 @@ measurements2 <- measurements2 %>%
   )
 
 #Pivoting table ot usable format 
-library(tidyr)
 
-df_summary <- measurements2 %>%
+
+df_summary <- rawdata %>%
   mutate(Classification = as.factor(Classification)) %>%
   group_by(Image, SlideID, SubjectID, Group, Classification) %>%
   summarise(
@@ -96,4 +109,58 @@ ggplot(plot_df_fitc, aes(x = Classification, y = FITC_mean, fill = Group)) +
   labs(y = "FITC Mean Intensity", x = "Classification") +
   scale_fill_manual(values = c("case" = "red", "control" = "blue")) +
   scale_color_manual(values = c("case" = "red", "control" = "blue"))
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(stringr)
 
+# Prepare data
+spider_df <- df_summary %>%
+  select(Image, SlideID, SubjectID, Group, ends_with("Cy5_mean")) %>%
+  pivot_longer(
+    cols = ends_with("Cy5_mean"),
+    names_to = "Classification",
+    values_to = "Cy5_mean"
+  ) %>%
+  mutate(
+    Classification = str_remove(Classification, "_Cy5_mean$")
+  ) %>%
+  filter(Group %in% c("case", "control"))
+
+# Compute group means
+group_means <- spider_df %>%
+  group_by(Group, Classification) %>%
+  summarise(Cy5_mean = mean(Cy5_mean, na.rm = TRUE), .groups = "drop")
+
+# Spider plot with individuals (light) and group means (dark)
+ggplot() +
+  # individual subject traces
+  geom_line(
+    data = spider_df,
+    aes(x = Classification, y = Cy5_mean, group = SubjectID, color = Group),
+    alpha = 0.2, linewidth = 0.6
+  ) +
+  # group mean traces
+  geom_line(
+    data = group_means,
+    aes(x = Classification, y = Cy5_mean, group = Group, color = Group),
+    linewidth = 1.2
+  ) +
+  geom_point(
+    data = group_means,
+    aes(x = Classification, y = Cy5_mean, color = Group),
+    size = 2
+  ) +
+  coord_polar() +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "grey85"),
+    panel.grid.minor = element_blank()
+  ) +
+  scale_color_manual(values = c("case" = "red", "control" = "blue")) +
+  labs(
+    title = "Cy5 Mean Intensity (Spider Plot)",
+    x = NULL,
+    y = "Mean Intensity"
+  )

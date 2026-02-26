@@ -21,7 +21,7 @@ features_matrix <- feature_df %>%
   as.matrix()
 features_scaled <- scale(features_matrix)
 
-# 3. Identify outliers: images with any feature > mean + 3*sd
+# 3. Identify outliers: images with any feature > mean + 2*sd
 outlier_idx <- apply(features_scaled, 1, function(x) any(abs(x) > 2))
 feature_df$outlier <- outlier_idx
 
@@ -81,6 +81,9 @@ loadings2 <- pca_res2$rotation[,1:2]
 head(loadings2[order(abs(loadings2[,1]), decreasing = TRUE), ])  # Top contributors to PC1
 head(loadings2[order(abs(loadings2[,2]), decreasing = TRUE), ])  # Top contributors to PC2
 
+#scree plot 
+# Scree plot in base R
+plot(pca_res2, type = "l", main = "Scree Plot")
 
 # 5. UMAP
 set.seed(23)
@@ -128,3 +131,6 @@ pheatmap(heatmap_matrix,
          annotation_row = annotation_df,
          show_rownames = TRUE,
          main = "Heatmap of Cy5_mean per Classification")
+
+
+

@@ -10,8 +10,6 @@ feature_df_Cy5 <- df_summary %>%
 
 feature_df_Cy5$outlier <- outlier_idx
 
-feature_df_Cy5 <- feature_df_Cy5 %>% filter(SubjectID != "167a")
-
 feature_df_FITC <- df_summary %>%
   select(Image, Group, SubjectID, matches("FITC_(mean|stdev)$")) %>%
   pivot_longer(
